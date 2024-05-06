@@ -1,25 +1,22 @@
 import numpy as np
+from scipy.io import wavfile
+import scipy as sp
 
-def autocorrelate(x, k):
+def autocorrelate(x, d, K):
     """
-    Calculates x[n] conv x[n-k]
-    x is centered to elimiate the 0-frequency component
+    Calculates the autocorrelation matrix Rx and the autocorrelation vector rdx
+    from the K past samples of x and d
     """
-    #return np.convolve(np.mean(x[:end-Nf), x(i:end-k-1-Nf)));
+    # Compute correlations
+    Rx = np.zeros(K)
+    rdx = np.zeros(K)
 
-def autocorrelate(x):
-    """
-    Calculates the correlation matrix of size (k+1)*(k+1) of the signal
-    Arguments:
-        x: x[n-k]..x[n]
-    """
-    k = len(x) - 1
-
-    R_Xn = np.zeros(k+1)
-
-    for i in range(k+1):
-        R_Xn[i]= np.mean(...)
-    ...                
+    for i in range(K):
+        Rx[i] = np.mean(x[:(len(x)-K)] * x[i:(len(x) + i - K)])
+        rdx[i] = np.mean(x[:(len(x)-K)] * d[i:(len(x) + i - K)])
     
-def correlate(x, y):
-    ...
+    return sp.linalg.toeplitz(Rx), rdx
+
+def read_normalized(path):
+    fs, sig = wavfile.read(path)
+    return fs, sig, sig / 32767

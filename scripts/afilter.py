@@ -1,22 +1,65 @@
 import numpy as np
 from scipy import signal
-import sigutil
+import scripts.sigutil as sigutil
 
-def optimal_lms(x, d):
+def fixed_optimal_lms(x, d, K):
     """
-    Computes an adaptive filtering step using the optimal LMS algorithm. The naive approach is very slow, hence this should
-    probably only be used for benchmarking purposes
+    Computes a fixed non-adaptive filter using the optimal LMS algorithm. 
+    This naive approach is very slow, hence this should probably only be used 
+    for benchmarking purposes.
     Args:
-        x: Samples x[n-k]...x[n] of noise corrolated with the noise corrupting s[n]
-        d: Samples s[n-k]...s[n] but corrupted by noise
+        x: Signal of noise corrolated with the noise corrupting s[n]
+        d: Signal s[n] but corrupted by noise
+        K: Number of past samples
     Returns:
         a single value s'[n] approximating s[n]
     """
-    n = len(x) - 1
+    Rx, rdx = sigutil.autocorrelate(x, d, K)
+    f = np.linalg.solve(Rx, rdx)
+    return f, d - np.convolve(x, f)[0:len(d)]
 
-    R_Xn = sigutil.autocorrelate(x)
-    r_DX = sigutil.correlate(d, x)
+def fixed_iterative_lms(x, d, K, N_it):
+    """
+    Computes a fixed non-adaptive filter using the iterative LMS algorithm.
+    This approach is faster than the optimal one, but might be less accurate.
+    """
+    Rx, rdx = sigutil.autocorrelate(x, d, K)
+    eigenvalues, _ = np.linalg.eig(Rx)
+    lambda_max = np.max(eigenvalues)
+    lambda_min = np.min(eigenvalues)
 
-    f_n = np.linalg.solve(R_Xn, r_DX)
+    # Choose step size mu such that 0 < mu < 2/lambda_max
+    mu = 2/(lambda_max + lambda_min)
 
-    return d[n] - np.convolve(f_n, x)[n]
+    if mu >= 2/lambda_max:
+        raise Exception("Step size cannot be bigger than 2/lambda_max!")
+    
+    f_it = np.zeros(K)
+
+    for _ in range(N_it):
+        f_it = f_it + mu * (rdx - Rx @ f_it)
+
+    return f_it, d - np.convolve(x, f_it)[0:len(d)]
+
+def adaptive_iterative_lms(x, d, K, N_it, mu, callback=None):
+    f_ad = np.zeros(K)
+    e_ad = np.zeros(len(d))
+
+    # Adaptive filtering
+    for i in range(K, len(e_ad)):
+        X = x[i-K:i]
+
+        # Solve normal equation
+        for _ in range(N_it):
+            f_ad = f_ad + mu * X * (d[i] - f_ad.T @ X)
+
+        # Update output
+        e_ad[i] = d[i] - f_ad.T @ X
+
+        # Plot the iterative filter at some time instants (every 7 seconds starting from 16 seconds)
+        if callback:
+            callback(i, f_ad[::-1])
+
+    f_ad = f_ad[::-1]
+
+    return f_ad, e_ad
