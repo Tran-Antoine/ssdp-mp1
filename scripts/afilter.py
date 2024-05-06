@@ -42,6 +42,10 @@ def fixed_iterative_lms(x, d, K, N_it):
     return f_it, d - np.convolve(x, f_it)[0:len(d)]
 
 def adaptive_iterative_lms(x, d, K, N_it, mu, callback=None):
+    """
+    Computes an adaptive filter using the iterative LMS algorithm.
+    This takes an optional callback that can be used to plot things during the computation
+    """
     f_ad = np.zeros(K)
     e_ad = np.zeros(len(d))
 
