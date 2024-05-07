@@ -139,20 +139,6 @@ def adaptive_abc(x, d, K, N_bees, limit):
         reward_value = reward(i)
         norm = sum([reward(k) for k in range(0, N_sols)])
         return reward_value / norm
-    
-    # Each employee goes to their random food source, finds a neighboring one
-    # and moves there if it's a better source (otherwise does nothing)
-    for employee in range(N_sols):
-        current_reward = reward(employee)
-        next_position = neighbor(employee)
-        next_reward = potential_reward(next_position)
-
-        # if the next source is better, go there and forget about the current source
-        if next_reward > current_reward:
-            solution_space[:,employee] = next_position
-            solution_space_tries[employee] = 0 # reset the number of tries
-        else:
-            solution_space_tries[employee] += 1 # increment try counter
 
     while True:
         # Each employee gets attributed a weight to indicate how good its source is
