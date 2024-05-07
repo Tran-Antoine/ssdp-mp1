@@ -91,3 +91,33 @@ def adaptive_iterative_lms(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None,
     f_ad = f_ad[::-1]
 
     return f_ad, e_ad
+
+def adaptive_abc(x, d, K, N_bees, limit):
+    import random
+    """
+    Computes an adaptive filter using the improved ABC algorithm for adaptive filtering
+    """
+    solution_space = np.random.default_rng().uniform(0, limit, [K, N_bees])
+
+    def neighbor(i):
+        xik = solution_space[:,i]
+        j = random.randint(0, N_bees - 2)
+        if j == i: 
+            j = N_bees - 1
+        
+        xjk = solution_space[:,j]
+
+        return xik + (2*random.random()-1) * (xik - xjk)
+    
+    def reward(i):
+        fi = solution_space[:,i]
+        Ji = d - np.convolve(x, fi)[0:len(d)]
+        return 1 / (1 + Ji)
+    
+    def p(i):
+        reward_value = reward(i)
+        norm = sum([reward(k) for k in range(0, N_bees)])
+        return reward_value / norm
+    
+    ...
+
