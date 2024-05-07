@@ -153,7 +153,7 @@ def adaptive_abc(x, d, K, N_bees, limit):
         weights = [reward(k) for k in range(0, N_sols)]
         weights /= sum(weights)
 
-        # Now all employees come back. Onlookers are going to pick the best sources
+        # Now all employees come back and communicate. Onlookers are going to pick the best sources
         # according to their weightages. Some sources might get multiple onlookers, others none
         solution_space_coverage = np.zeros(N_bees)
 
@@ -185,6 +185,7 @@ def adaptive_abc(x, d, K, N_bees, limit):
                 set_position(index, current_max_position)
                 solution_space_tries[index] = 0
 
+                # If the location is the overall best (not just around this source), update it
                 error_value = error(current_max_position)
                 if error_value < best_error:
                     best_error = error_value
