@@ -125,6 +125,9 @@ def adaptive_abc(x, d, K, N_bees, limit):
 
         return xik + (2*random.random()-1) * (xik - xjk)
     
+    def error(vec):
+        return (d - np.convolve(x, vec)[0:len(d)])**2
+    
     def reward(i):
         fi = position(i)
         return potential_reward(fi)
@@ -132,15 +135,20 @@ def adaptive_abc(x, d, K, N_bees, limit):
     def potential_reward(vec):
         if not vec or len(vec) == 0 or math.isnan(vec[0]):
             return 0.0
-        Ji = d - np.convolve(x, vec)[0:len(d)]
-        return 1 / (1 + Ji*Ji)
+        Ji = error(vec)
+        return 1 / (1 + Ji)
     
     def p(i):
         reward_value = reward(i)
         norm = sum([reward(k) for k in range(0, N_sols)])
         return reward_value / norm
+    
 
-    while True:
+    best_source = None
+    best_error = 10e20
+
+    # TODO: find a better termination (like when it stops improving) instead of fixed number of steps
+    for _ in range(500):
         # Each employee gets attributed a weight to indicate how good its source is
         weights = [reward(k) for k in range(0, N_sols)]
         weights /= sum(weights)
@@ -176,6 +184,12 @@ def adaptive_abc(x, d, K, N_bees, limit):
             if success:
                 set_position(index, current_max_position)
                 solution_space_tries[index] = 0
+
+                error_value = error(current_max_position)
+                if error_value < best_error:
+                    best_error = error_value
+                    best_source = current_max_position
+
             elif failures == 0:
                 # not being picked at all counts as a single failure
                 solution_space_tries[index] += 1
@@ -187,6 +201,8 @@ def adaptive_abc(x, d, K, N_bees, limit):
             if n <= limit:
                 continue
             set_random_position(index)
+
+    return best_source, error(best_source)
             
     
         
