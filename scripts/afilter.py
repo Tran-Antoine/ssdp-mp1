@@ -64,13 +64,19 @@ def adaptive_iterative_lms(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None,
 
         elif(algoType == 'NLMS'):
             eps = 0.05
-            normalizationFactor = mu/(eps + X.T @ X)
 
             for _ in range(N_it):
+                normalizationFactor = mu/(eps + np.dot(X, X))
                 f_ad = f_ad + normalizationFactor * X * (d[i] - f_ad.T @ X)
 
         elif(algoType == 'RLS'):
-            raise NotImplementedError('RLS not implemented yet!')
+            omega = 1/delta * np.identity(K)
+            
+            for _ in range(N_it):
+                z = omega @ X
+                g = z / (lambda_ + np.dot(X, z))
+                f_ad = f_ad + g * (d[i] - f_ad.T @ X)
+                omega = 1/lambda_ * (omega - np.dot(g.reshape(-1, 1), z.reshape(1, -1)))
 
         else:
             raise ValueError('Invalid algo type ! Algo type must be either LMS or NLMS or RLS!')
