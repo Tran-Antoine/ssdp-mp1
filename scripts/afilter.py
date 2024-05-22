@@ -41,10 +41,14 @@ def fixed_iterative_lms(x, d, K, N_it):
 
     return f_it, d - np.convolve(x, f_it)[0:len(d)]
 
-def adaptive_iterative_lms(x, d, K, N_it, mu, callback=None):
+def adaptive_iterative_lms(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None, delta=None, callback=None):
     """
-    Computes an adaptive filter using the iterative LMS algorithm.
-    This takes an optional callback that can be used to plot things during the computation
+    Computes an adaptive filter using the algoType algorithm. algoType is a string that allows
+    the selection between three algorithms:
+    - LMS: Standard LMS
+    - NLMS: Normalized LMS (a type of nonlinear LMS)
+    - RLS: Recursive LS (another type of nonlinear LMS)
+    This takes an optional callback that can be used to plot things during the computation.
     """
     f_ad = np.zeros(K)
     e_ad = np.zeros(len(d))
@@ -53,9 +57,23 @@ def adaptive_iterative_lms(x, d, K, N_it, mu, callback=None):
     for i in range(K, len(e_ad)):
         X = x[i-K:i]
 
-        # Solve normal equation
-        for _ in range(N_it):
-            f_ad = f_ad + mu * X * (d[i] - f_ad.T @ X)
+        # Solve normal equation using algoType method
+        if(algoType == 'LMS'):
+            for _ in range(N_it):
+                f_ad = f_ad + mu * X * (d[i] - f_ad.T @ X)
+
+        elif(algoType == 'NLMS'):
+            eps = 0.05
+            normalizationFactor = mu/(eps + X.T @ X)
+
+            for _ in range(N_it):
+                f_ad = f_ad + normalizationFactor * X * (d[i] - f_ad.T @ X)
+
+        elif(algoType == 'RLS'):
+            raise NotImplementedError('RLS not implemented yet!')
+
+        else:
+            raise ValueError('Invalid algo type ! Algo type must be either LMS or NLMS or RLS!')
 
         # Update output
         e_ad[i] = d[i] - f_ad.T @ X
