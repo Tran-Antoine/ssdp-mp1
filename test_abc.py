@@ -1,16 +1,16 @@
-import afilter
+import scripts.afilter as afilter
 import matplotlib.pyplot as plt
-import sigutil as util
+import scripts.sigutil as util
 
 fs, d, d_norm = util.read_normalized('data/2_RecStatic.wav')  # read d[n]
 _, x, x_norm = util.read_normalized('data/2_Sig.wav')  # read x[n]
 
 # Apply the iteration (cf other notebooks)
-N_bees = 10
-limit = 15
-K = 600
+N_bees = 6
+limit = 10
+K = 100
 
-f_ad, reconstructed = afilter.adaptive_abc(x_norm, d_norm, K, N_bees, limit)
+reconstructed = afilter.adaptive_abc(x_norm, d_norm, K, N_bees, limit)
 
 # Create the plot
 plt.figure(figsize=(12, 6))

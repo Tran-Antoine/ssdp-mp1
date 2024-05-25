@@ -125,19 +125,19 @@ def adaptive_abc(x, d, K, N_bees, limit):
 
         return xik + (2*random.random()-1) * (xik - xjk)
     
-    def error_signal(vec):
-        return d - np.convolve(x, vec)[0:len(d)]
-    def error(vec):
-        return np.linalg.norm((d - np.convolve(x, vec)[0:len(d)]))
-    
-    def reward(i):
-        fi = position(i)
-        return potential_reward(fi)
-    
-    def potential_reward(vec):
-        if vec is None or len(vec) == 0 or math.isnan(vec[0]):
+    def error(f, X, idx):
+        if f is None or len(f) == 0 or math.isnan(f[0]):
             return 0.0
-        Ji = error(vec)
+        return (d[idx] - f.T @ X)**2
+    
+    def reward(i, X, idx):
+        fi = position(i)
+        return potential_reward(fi, X, idx)
+    
+    def potential_reward(f, X, idx):
+        if f is None or len(f) == 0 or math.isnan(f[0]):
+            return 0
+        Ji = error(f, X, idx)
         return 1 / (1 + Ji)
     
     def p(i):
@@ -145,68 +145,80 @@ def adaptive_abc(x, d, K, N_bees, limit):
         norm = sum([reward(k) for k in range(0, N_sols)])
         return reward_value / norm
     
+    def abc_one_sample(X, iteration):
+        best_source = None  # will contain the values of the filter
+        best_error = 10e20
+        N_ITER = 2
 
-    best_source = None
-    best_error = 10e20
-    N_ITER = 20
+        # TODO: find a better termination (like when it stops improving) instead of fixed number of steps
+        for c in range(N_ITER):
+            
+            # if(c % 10 == 0):
+            #     print(f"Completed {c}/{N_ITER}")
+            # Each employee gets attributed a weight to indicate how good its source is
+            weights = [reward(k, X, iteration) for k in range(0, N_sols)]
+            weights /= sum(weights)
+            
+            # Now all employees come back and communicate. Onlookers are going to pick the best sources
+            # according to their weightages. Some sources might get multiple onlookers, others none
+            solution_space_coverage = np.zeros(N_sols)
 
-    # TODO: find a better termination (like when it stops improving) instead of fixed number of steps
-    for k in range(N_ITER):
-        
-        if(k % 10 == 0):
-            print(f"Completed {k}/{N_ITER}")
-        # Each employee gets attributed a weight to indicate how good its source is
-        weights = [reward(k) for k in range(0, N_sols)]
-        weights /= sum(weights)
-        
-        # Now all employees come back and communicate. Onlookers are going to pick the best sources
-        # according to their weightages. Some sources might get multiple onlookers, others none
-        solution_space_coverage = np.zeros(N_sols)
+            for onlooker in range(N_bees):
+                chosen_source = np.random.choice(N_sols, p=weights)
+                solution_space_coverage[chosen_source] += 1
 
-        for onlooker in range(N_bees):
-            chosen_source = np.random.choice(N_sols, p=weights)
-            solution_space_coverage[chosen_source] += 1
+            # For each food source, compute a new neighboring position for each
+            # onlooker bee that chose to go there  
+            for (index, n) in enumerate(solution_space_coverage):
+                current_max_reward = reward(index, X, iteration)
+                current_max_position = position(index)
+                success = False
+                failures = 0
+                for _ in range(int(n)):
+                    next_position = neighbor(index)
+                    next_reward = potential_reward(next_position, X, iteration)
 
-        # For each food source, compute a new neighboring position for each
-        # onlooker bee that chose to go there  
-        for (index, n) in enumerate(solution_space_coverage):
-            current_max_reward = reward(index)
-            current_max_position = position(index)
-            success = False
-            failures = 0
-            for _ in range(int(n)):
-                next_position = neighbor(index)
-                next_reward = potential_reward(next_position)
+                    if next_reward > current_max_reward:
+                        success = True
+                        current_max_reward = next_reward
+                        current_max_position = next_position
+                    else:
+                        failures += 1
 
-                if next_reward > current_max_reward:
-                    success = True
-                    current_max_reward = next_reward
-                    current_max_position = next_position
+                # If at least one position was better, select the best one
+                # and reset the number of tries
+                if success:
+                    set_position(index, current_max_position)
+                    solution_space_tries[index] = 0
+
+                    # If the location is the overall best (not just around this source), update it
+                    error_value = error(current_max_position, X, iteration)
+                    if error_value < best_error:
+                        best_error = error_value
+                        best_source = current_max_position
+
+                elif failures == 0:
+                    # not being picked at all counts as a single failure
+                    solution_space_tries[index] += 1
                 else:
-                    failures += 1
+                    solution_space_tries[index] += failures
 
-            # If at least one position was better, select the best one
-            # and reset the number of tries
-            if success:
-                set_position(index, current_max_position)
-                solution_space_tries[index] = 0
+            # Employed bee with 'dead' locations go scout for other locations
+            for (index, n) in enumerate(solution_space_tries):
+                if n <= limit:
+                    continue
+                set_random_position(index)
 
-                # If the location is the overall best (not just around this source), update it
-                error_value = error(current_max_position)
-                if error_value < best_error:
-                    best_error = error_value
-                    best_source = current_max_position
+        return error(best_source, X, iteration)
 
-            elif failures == 0:
-                # not being picked at all counts as a single failure
-                solution_space_tries[index] += 1
-            else:
-                solution_space_tries[index] += failures
+    #f_ad = np.zeros(K)
+    e_ad = np.zeros(len(d))
 
-        # Employed bee with 'dead' locations go scout for other locations
-        for (index, n) in enumerate(solution_space_tries):
-            if n <= limit:
-                continue
-            set_random_position(index)
+    # Adaptive filtering
+    for i in range(K, len(e_ad)):
+        X = x[i-K:i]
+        e_ad[i] = abc_one_sample(X, i)
+        if i%5000 == 0:
+            print(f'{(i-K)/(len(e_ad)-K)}')
 
-    return best_source, error_signal(best_source)
+    return e_ad
