@@ -98,7 +98,7 @@ def adaptive_abc(x, d, K, N_bees, limit):
     """
     Computes an adaptive filter using the improved ABC algorithm for adaptive filtering
     """
-    N_sols = N_bees / 2
+    N_sols = int(N_bees / 2)
 
     # Start with random food sources
     solution_space = np.random.default_rng().uniform(-1, 1, [K, N_sols])
@@ -119,21 +119,23 @@ def adaptive_abc(x, d, K, N_bees, limit):
         xik = position(i)
         j = random.randint(0, N_sols - 2)
         if j == i: 
-            j = N_bees - 1
+            j = N_sols - 1
         
         xjk = position(j)
 
         return xik + (2*random.random()-1) * (xik - xjk)
     
+    def error_signal(vec):
+        return d - np.convolve(x, vec)[0:len(d)]
     def error(vec):
-        return (d - np.convolve(x, vec)[0:len(d)])**2
+        return np.linalg.norm((d - np.convolve(x, vec)[0:len(d)]))
     
     def reward(i):
         fi = position(i)
         return potential_reward(fi)
     
     def potential_reward(vec):
-        if not vec or len(vec) == 0 or math.isnan(vec[0]):
+        if vec is None or len(vec) == 0 or math.isnan(vec[0]):
             return 0.0
         Ji = error(vec)
         return 1 / (1 + Ji)
@@ -146,29 +148,33 @@ def adaptive_abc(x, d, K, N_bees, limit):
 
     best_source = None
     best_error = 10e20
+    N_ITER = 20
 
     # TODO: find a better termination (like when it stops improving) instead of fixed number of steps
-    for _ in range(500):
+    for k in range(N_ITER):
+        
+        if(k % 10 == 0):
+            print(f"Completed {k}/{N_ITER}")
         # Each employee gets attributed a weight to indicate how good its source is
         weights = [reward(k) for k in range(0, N_sols)]
         weights /= sum(weights)
-
+        
         # Now all employees come back and communicate. Onlookers are going to pick the best sources
         # according to their weightages. Some sources might get multiple onlookers, others none
-        solution_space_coverage = np.zeros(N_bees)
+        solution_space_coverage = np.zeros(N_sols)
 
-        for onlooker in range(N_sols):
-            chosen_source = np.random.choice(N_bees, p=weights)
+        for onlooker in range(N_bees):
+            chosen_source = np.random.choice(N_sols, p=weights)
             solution_space_coverage[chosen_source] += 1
 
         # For each food source, compute a new neighboring position for each
-        # onlooker bee that chose to go there        
+        # onlooker bee that chose to go there  
         for (index, n) in enumerate(solution_space_coverage):
             current_max_reward = reward(index)
             current_max_position = position(index)
             success = False
             failures = 0
-            for _ in range(n):
+            for _ in range(int(n)):
                 next_position = neighbor(index)
                 next_reward = potential_reward(next_position)
 
@@ -203,8 +209,4 @@ def adaptive_abc(x, d, K, N_bees, limit):
                 continue
             set_random_position(index)
 
-    return best_source, error(best_source)
-            
-    
-        
-
+    return best_source, error_signal(best_source)
