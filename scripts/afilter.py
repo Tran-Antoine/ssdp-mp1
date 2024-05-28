@@ -41,7 +41,7 @@ def fixed_iterative_lms(x, d, K, N_it):
 
     return f_it, d - np.convolve(x, f_it)[0:len(d)]
 
-def adaptive_iterative_lms(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None, delta=None, callback=None):
+def adaptive_filter(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None, delta=None, callback=None):
     """
     Computes an adaptive filter using the algoType algorithm. algoType is a string that allows
     the selection between three algorithms:
