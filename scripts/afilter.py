@@ -84,9 +84,9 @@ def adaptive_filter(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None, delta=
         # Update output
         e_ad[i] = d[i] - f_ad.T @ X
 
-        # Plot the iterative filter at some time instants (every 7 seconds starting from 16 seconds)
+        # Plot the iterative filter at some time instants defined by the callback plot function
         if callback:
-            callback(i, f_ad)
+            callback(i, f_ad[::-1])
 
     f_ad = f_ad[::-1]  # Return (f[0], ..., f[K])
 
