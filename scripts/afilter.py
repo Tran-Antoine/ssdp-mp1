@@ -65,8 +65,8 @@ def adaptive_filter(x, d, K, N_it, algoType='LMS', mu=None, lambda_=None, delta=
         elif(algoType == 'NLMS'):
             eps = 0.05
 
+            normalizationFactor = mu/(eps + np.dot(X, X))
             for _ in range(N_it):
-                normalizationFactor = mu/(eps + np.dot(X, X))
                 f_ad = f_ad + normalizationFactor * X * (d[i] - f_ad.T @ X)
 
         elif(algoType == 'RLS'):
